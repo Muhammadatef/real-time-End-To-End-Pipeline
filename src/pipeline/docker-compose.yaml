@@ -1,0 +1,207 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - streaming-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - streaming-network
+
+  kafdrop:
+    image: obsidiandynamics/kafdrop
+    ports:
+      - "9000:9000"
+    environment:
+      KAFKA_BROKER_CONNECT: "kafka:29092"
+    depends_on:
+      - kafka
+    networks:
+      - streaming-network
+
+  pyspark:
+    build:
+      context: ../
+      dockerfile: pipeline/Dockerfile
+    depends_on:
+      - kafka
+      - influxdb
+    environment:
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: pyspark
+      SPARK_MASTER_PORT: 7077
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    networks:
+      - streaming-network
+    entrypoint: ["tail", "-f", "/dev/null"]
+
+  sftp:
+    image: atmoz/sftp
+    ports:
+      - "2222:22"
+    command: foo:pass:::upload
+    volumes:
+      - ./sftp_data:/home/output
+    networks:
+      - streaming-network
+
+  influxdb:
+    image: influxdb:latest
+    ports:
+      - "8086:8086"
+    environment:
+      INFLUXDB_DB: unified_data
+      INFLUXDB_ADMIN_USER: admin
+      INFLUXDB_ADMIN_PASSWORD: admin_password
+    volumes:
+      - influxdb_data:/var/lib/influxdb
+    networks:
+      - streaming-network
+
+  grafana:
+    image: grafana/grafana:latest
+    depends_on:
+      - influxdb
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - streaming-network
+
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: customer_data
+    ports:
+      - 5439:5439
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 5s
+      retries: 5
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - streaming-network
+
+  sales_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.sales_api
+    container_name: sales_api
+    environment:
+      - KAFKA_BROKER=kafka:29092
+    networks:
+      - streaming-network
+    ports:
+      - "5001:5001"
+
+  customer_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.customer_api
+    container_name: customer_api
+    environment:
+      - KAFKA_BROKER=kafka:29092
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=your_user
+      - POSTGRES_PASSWORD=YourStrongPassword123
+      - POSTGRES_DB=customer_data
+    networks:
+      - streaming-network
+    ports:
+      - "5002:5002"
+
+  airflow-webserver:
+    container_name: airflow-webserver
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      - postgres
+      - kafka
+    ports:
+      - "8087:8080"
+    environment:
+    - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=false
+    - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=true
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    - AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=false
+    - AIRFLOW__WEBSERVER__SECRET_KEY=276dfe5d2c425e7cab29a9336ed6c0df7a7afe37748e45b36936a42e444c8c42
+    - AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
+    - AIRFLOW__LOGGING__REMOTE_LOGGING=false
+    volumes:
+      - /home/maf/StreamingPipeline/StreamingPipeline/airflow/dags:/opt/airflow/dags
+      - /home/maf/StreamingPipeline/StreamingPipeline/src/data_generators:/opt/airflow/data_generators
+      - /home/maf/StreamingPipeline/StreamingPipeline/api:/opt/airflow/api
+      - /home/maf/StreamingPipeline/StreamingPipeline/src/pipeline:/opt/airflow/pipeline
+      - ./data/reference:/opt/airflow/data/reference
+    command: ["airflow", "webserver"]
+    networks:
+      - streaming-network
+
+  airflow-scheduler:
+    container_name: airflow-scheduler
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    depends_on:
+      - postgres
+      - airflow-webserver
+    environment:
+    - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=false
+    - AIRFLOW__WEBSERVER__ENABLE_PROXY_FIX=true
+    - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+    - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    - AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=false
+    - AIRFLOW__WEBSERVER__SECRET_KEY=276dfe5d2c425e7cab29a9336ed6c0df7a7afe37748e45b36936a42e444c8c42
+    - AIRFLOW__LOGGING__BASE_LOG_FOLDER=/opt/airflow/logs
+    - AIRFLOW__LOGGING__REMOTE_LOGGING=false
+    volumes:
+      - /home/maf/StreamingPipeline/StreamingPipeline/airflow/dags:/opt/airflow/dags
+      - /home/maf/StreamingPipeline/StreamingPipeline/src/data_generators:/opt/airflow/data_generators
+      - /home/maf/StreamingPipeline/StreamingPipeline/api:/opt/airflow/api
+      - /home/maf/StreamingPipeline/StreamingPipeline/src/pipeline:/opt/airflow/pipeline
+      - ./data:/opt/airflow/data
+    command: ["airflow", "scheduler"]
+    networks:
+      - streaming-network
+
+networks:
+  streaming-network:
+    driver: bridge
+
+volumes:
+  influxdb_data:
+  grafana_data:
+  postgres_data:

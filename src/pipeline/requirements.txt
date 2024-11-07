@@ -1,0 +1,48 @@
+# Existing libraries
+attrs==24.2.0
+certifi==2024.8.30
+charset-normalizer==2.1.1
+click==8.1.7
+cx-Oracle==8.3.0
+Faker==15.2.0
+Flask==2.1.1
+idna==3.10
+importlib-metadata==8.5.0
+influxdb-client==1.35.0
+itsdangerous==2.2.0
+jinja2==3.1.4
+jsonschema==4.16.0
+kafka-python==2.0.2
+MarkupSafe==3.0.2
+numpy==2.0.2
+pandas==1.5.3
+pyflink==1.0
+pyrsistent==0.20.0
+python-dateutil==2.9.0.post0
+pytz==2024.2
+random2==1.0.1
+reactivex==4.0.4
+requests==2.28.1
+six==1.16.0
+typing-extensions==4.12.2
+urllib3==2.2.3
+Werkzeug==2.0.3
+zipp==3.20.2
+tenacity==8.2.2
+paramiko
+
+# Additional Libraries
+# Required for handling file monitoring
+watchdog==3.0.0
+
+# PySpark for running the Spark pipeline
+pyspark==3.5.0
+
+# Apache Airflow dependencies
+apache-airflow==2.7.2  # Ensure Airflow version compatibility with your Python version
+
+# Needed for Airflow Spark integration
+apache-airflow-providers-apache-spark==3.0.0
+
+# Additional dependencies that may be useful for Flask, Kafka, and others
+gunicorn==21.2.0  # Production-ready server for running Flask apps

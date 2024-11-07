@@ -1,0 +1,49 @@
+[Grafana]
+[Producers]
+[Servinglayer]
+    └── InfluxDB.py
+Streaming Pipeline (1).jpg
+[airflow]
+    └── [dag]
+        ├── pipeline_dag.py
+        └── sales_data.py
+[anonymized_and_nonanonmyized]
+[api]
+    ├── [__pycache__]
+        └── sales_data_generator.cpython-39.pyc
+    ├── customer_api.py
+    ├── sales_api.py
+    ├── sales_data_generator.py
+    └── sync_api.py
+[checkpoint]
+[config]
+[data]
+    └── [reference]
+        ├── [agent_data]
+        ├── [car_data]
+        └── [office_data]
+[docs]
+    ├── .project_structure_filter
+    └── project_structure_filtered.txt
+filestructure.txt
+kafka-consumer.py
+[processing]
+[sftp_data]
+[src]
+    ├── [data_generators]
+        ├── agent_producer.py
+        ├── car_producer.py
+        ├── customer_data_to_oracle.py
+        ├── gps_producer.py
+        └── office_producer.py
+    ├── [pipeline]
+        ├── Dockerfile
+        ├── docker-compose.yaml
+        ├── pyflink-pipeline.py
+        ├── requirements.txt
+        ├── streaming_pipeline.py
+        └── whole_pipeline.py
+    └── [scripts]
+        └── kafka-setup.sh
+
+--- File Contents ---

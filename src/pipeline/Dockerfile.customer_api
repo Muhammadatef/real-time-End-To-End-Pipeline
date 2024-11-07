@@ -1,0 +1,13 @@
+# Dockerfile.customer_api
+FROM python:3.8-slim
+
+WORKDIR /app
+
+COPY ../api_files/customer_api.py /app/customer_api.py
+
+# Install dependencies, using psycopg2-binary to avoid pg_config issues
+RUN pip install flask psycopg2-binary kafka-python
+
+EXPOSE 5002
+
+CMD ["python", "customer_api.py"]

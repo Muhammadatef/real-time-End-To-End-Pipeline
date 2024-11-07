@@ -1,0 +1,12 @@
+# Dockerfile.sales_api
+FROM python:3.8-slim
+
+WORKDIR /app
+
+COPY ../api_files/sales_api.py /app/sales_api.py
+
+RUN pip install flask kafka-python
+
+EXPOSE 5001
+
+CMD ["python", "sales_api.py"]
